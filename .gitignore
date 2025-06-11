@@ -1,0 +1,36 @@
+# Entorno virtual de Python
+venv/
+ENV/
+env/
+.venv/
+
+# Archivos de configuración sensibles
+.env
+*.env
+firebase-adminsdk-credentials.json
+
+# Archivos de Python compilados
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos de logs y caché
+*.log
+*.sqlite3
+.cache/
+coverage/
+htmlcov/
+
+# Directorios del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de dependencia opcionales
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Editor y sistema
+.vscode/
+.idea/
+*.swp
+*.swo
