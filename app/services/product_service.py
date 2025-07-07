@@ -50,6 +50,35 @@ def list_all_products():
         products.append(clean_firestore_doc(product_data))
     return products
 
+def list_user_products(user_id: str):
+    """
+    (READ-LIST) Devuelve productos donde el usuario es comprador
+    y el estado está en 'reserved' o 'sold'.
+    """
+    query = db.collection('products') \
+              .where(filter=firestore.FieldFilter('buyerId', '==', user_id)) \
+              .where(filter=firestore.FieldFilter('status', 'in', ['reserved', 'sold']))
+
+    products = []
+    for doc in query.stream():
+        data = doc.to_dict()
+        data['id'] = doc.id
+        products.append(clean_firestore_doc(data))
+    return products
+
+def list_products_by_seller(seller_id):
+    """(READ-LIST) Obtiene los productos activos de un vendedor específico."""
+    query = db.collection('products') \
+              .where(filter=firestore.FieldFilter('sellerId', '==', seller_id)) \
+              .where(filter=firestore.FieldFilter('active', '==', True)) \
+              .where(filter=firestore.FieldFilter('status', '==', 'approved'))
+    products = []
+    for doc in query.stream():
+        data = doc.to_dict()
+        data['id'] = doc.id
+        products.append(clean_firestore_doc(data))
+    return products 
+
 def get_product_by_id(product_id):
     """(READ-ID) Obtiene un producto por su ID."""
     doc = db.collection('products').document(product_id).get()
@@ -108,3 +137,54 @@ def delete_product(product_id, user_id, user_role):
     product_ref.update({'active': False, 'updatedAt': firestore.SERVER_TIMESTAMP})
     
     return {"id": product_id, "message": "Producto eliminado exitosamente."}
+
+def purchase_product(product_id: str, seller_id: str, is_admin: bool = False):
+    """
+    Marca la compra del producto tanto en la colección de transacciones
+    como en el documento del producto.
+    Solo puede hacerlo:
+      - el vendedor (sellerId)
+      - o un admin (is_admin=True)
+    Cambia status→'sold' en ambos lugares.
+    """
+    # 1) Obtener el producto
+    prod_ref = db.collection('products').document(product_id)
+    prod_snap = prod_ref.get()
+    if not prod_snap.exists:
+        raise ValueError("Producto no encontrado")
+
+    prod = prod_snap.to_dict()
+    # 2) Autorizar
+    if not is_admin and prod.get('sellerId') != seller_id:
+        raise PermissionError("Solo el vendedor o un admin pueden completar la venta")
+
+    # 3) Actualizar el producto
+    prod_ref.update({
+        'status': 'sold',
+        'soldAt': firestore.SERVER_TIMESTAMP
+    })
+
+    # 4) Actualizar la transacción
+    #    Asumimos que la transacción tiene ID = product_id en la colección 'transactions'
+    tx_ref = db.collection('transactions').document(product_id)
+    tx_snap = tx_ref.get()
+    if tx_snap.exists:
+        tx_ref.update({
+            'status': 'completed',
+            'completedAt': firestore.SERVER_TIMESTAMP
+        })
+    else:
+        # Si no hay transacción previa, la creamos
+        tx_ref.set({
+            'productId': product_id,
+            'buyerId': prod.get('buyerId'),
+            'sellerId': prod.get('sellerId'),
+            'status': 'completed',
+            'createdAt': firestore.SERVER_TIMESTAMP,
+            'completedAt': firestore.SERVER_TIMESTAMP
+        })
+
+    # 5) Devolver el producto actualizado
+    updated = prod_ref.get().to_dict()
+    updated['id'] = prod_ref.id
+    return clean_firestore_doc(updated)

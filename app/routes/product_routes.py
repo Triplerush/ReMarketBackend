@@ -44,6 +44,57 @@ def create():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@bp.route('/my-purchases', methods=['GET'])
+@login_required
+def get_my_purchases():
+    """
+    Lista productos que el usuario ha apartado (reserved)
+    o comprado (sold).
+    """
+    try:
+        prods = product_service.list_user_products(g.user['id'])
+        return jsonify(prods), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@bp.route('/<product_id>/purchase', methods=['POST'])
+@login_required
+def purchase_product_endpoint(product_id):
+    """
+    Endpoint para marcar un producto como comprado.
+    Solo puede invocarlo el vendedor o un admin.
+    """
+    user   = g.user
+    is_admin = user.get('role') == 'admin'
+
+    try:
+        updated = product_service.purchase_product(
+            product_id=product_id,
+            seller_id=user['id'],
+            is_admin=is_admin
+        )
+        return jsonify(updated), 200
+
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
+    except PermissionError as pe:
+        return jsonify({"error": str(pe)}), 403
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@bp.route('/mine', methods=['GET'])
+@login_required  # Requiere autenticación
+def get_my_products():
+    """
+    Lista los productos activos que ha creado el usuario autenticado.
+    """
+    try:
+        seller_id = g.user['id']
+        my_products = product_service.list_products_by_seller(seller_id)
+        return jsonify(my_products), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @bp.route('/<product_id>', methods=['PUT'])
 @login_required # Requiere que el usuario esté autenticado
 def update(product_id):
