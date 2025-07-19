@@ -24,9 +24,10 @@ def create_app():
 
     with app.app_context():
         # Importamos las rutas actualizadas
-        from .routes import auth_routes, user_routes, product_routes, rating_routes, report_routes, transaction_routes, saved_routes
+        from .routes import auth_routes, chat_routes, user_routes, product_routes, rating_routes, report_routes, transaction_routes, saved_routes
         
         app.register_blueprint(auth_routes.bp)
+        app.register_blueprint(chat_routes.bp)
         app.register_blueprint(user_routes.bp)
         app.register_blueprint(product_routes.bp)
         app.register_blueprint(rating_routes.bp)
