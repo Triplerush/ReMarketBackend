@@ -64,13 +64,16 @@ def purchase_product_endpoint(product_id):
     Endpoint para marcar un producto como comprado.
     Solo puede invocarlo el vendedor o un admin.
     """
-    user   = g.user
+    user = g.user
+    seller_id = user['id']
+    buyer_id = user['id']
     is_admin = user.get('role') == 'admin'
 
     try:
         updated = product_service.purchase_product(
             product_id=product_id,
-            seller_id=user['id'],
+            seller_id=seller_id,
+            buyer_id=buyer_id,
             is_admin=is_admin
         )
         return jsonify(updated), 200
@@ -81,7 +84,7 @@ def purchase_product_endpoint(product_id):
         return jsonify({"error": str(pe)}), 403
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
+
 @bp.route('/mine', methods=['GET'])
 @login_required  # Requiere autenticación
 def get_my_products():
